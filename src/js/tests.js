@@ -63,6 +63,14 @@ function getEventLocation(e) {
 let isDragging = false
 let dragStart = { x: 0, y: 0 }
 
+function resetZoom() {
+    cameraZoom = 1;
+}
+
+function resetCamera() {
+    cameraOffset = { x: 0, y: 0 };
+}
+
 function onPointerDown(e) {
     isDragging = true
     dragStart.x = getEventLocation(e).x/cameraZoom - cameraOffset.x
@@ -206,6 +214,75 @@ function drawHexes(ctx) {
  * @param {number} r hexagon corner radius
  */
 function drawHex(ctx, cx, cy, r) {
+    ctx.beginPath();
+    ctx.moveTo(cx + r * HEX_SIN, cy - r * HEX_COS);
+    ctx.lineTo(cx, cy - r);
+    ctx.lineTo(cx - r * HEX_SIN, cy - r * HEX_COS);
+    ctx.lineTo(cx - r * HEX_SIN, cy + r * HEX_COS);
+    ctx.lineTo(cx, cy + r);
+    ctx.lineTo(cx + r * HEX_SIN, cy + r * HEX_COS);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.strokeText(`${cx.toFixed(0)},${cy.toFixed(0)}`, cx - r + 7, cy + 2);
+}
+
+function hexTestTwo() {
+    let testArea = document.querySelector("#testArea");
+    testArea.innerHTML = "";
+
+    let canvas = document.createElement("canvas");
+    canvas.id = "canvas";
+    canvas.width = 1000;
+    canvas.height = 700;
+    testArea.appendChild(canvas);
+
+    canvas.addEventListener('mousedown', onPointerDown);
+    canvas.addEventListener('touchstart', (e) => handleTouch(e, onPointerDown));
+    canvas.addEventListener('mouseup', onPointerUp);
+    canvas.addEventListener('touchend',  (e) => handleTouch(e, onPointerUp));
+    canvas.addEventListener('mousemove', onPointerMove);
+    canvas.addEventListener('touchmove', (e) => handleTouch(e, onPointerMove));
+    canvas.addEventListener('wheel', (e) => adjustZoom(e.deltaY * SCROLL_SENSITIVITY));
+
+    let ctx = canvas.getContext("2d");
+    draw2(canvas, ctx);
+}
+
+function draw2(canvas, ctx) {
+    canvas.width = 1000;
+    canvas.height = 700;
+
+    ctx.translate(500, 350);
+    ctx.scale(cameraZoom, cameraZoom);
+    ctx.translate(-500 + cameraOffset.x, -350 + cameraOffset.y);
+    ctx.clearRect(0, 0, 1000, 700);
+
+    drawMap(ctx);
+
+    requestAnimationFrame(() => draw2(canvas, ctx));
+}
+
+let tiles = [
+    { x: 0, y: 0 },
+    { x: -1, y: 1 },
+    { x: 1, y: -3 },
+    { x: 2, y: 2 }
+];
+
+function drawMap(ctx) {
+    let sorted = tiles.toSorted((a, b) => a.y - b.y);
+    for (let tile of sorted) {
+        drawTile(ctx, tile);
+    }
+}
+
+function drawTile(ctx, tile) {
+    let centerX = 400;
+    let centerY = 300;
+    let radius = 25;
+    let spacingX = 50;
+
     ctx.beginPath();
     ctx.moveTo(cx + r * HEX_SIN, cy - r * HEX_COS);
     ctx.lineTo(cx, cy - r);
