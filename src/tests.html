@@ -8,7 +8,50 @@
             <button type="button" onclick="startHexTest();">Start hex test</button>
             <button type="button" onclick="resetCamera();">Reset camera</button>
             <button type="button" onclick="resetZoom();">Reset zoom</button>
-            <button type="button" onclick="hexTestTwo();">Hex test 2</button>
+        </div>
+        <div>
+            <label>
+                Width:
+                <input id="txtWidth" type="text" value="900" style="width: 50px;"><span style="color: gray;">px</span>
+            </label>
+            <label>
+                Height:
+                <input id="txtHeight" type="text" value="800" style="width: 50px;"><span style="color: gray;">px</span>
+            </label>
+            <label>
+                Tile corner radius:
+                <input id="txtRadius" type="text" value="29" style="width: 50px;"><span style="color: gray;">px</span>
+            </label>
+            <label>
+                Tile horizontal spacing:
+                <input id="txtSpacing" type="text" value="50" style="width: 50px;"><span style="color: gray;">px</span>
+            </label>
+        </div>
+        <div>
+            <label>
+                <input type="radio" name="labelType" value="coords" checked="checked">
+                Show pixel coords
+            </label>
+            <label>
+                <input type="radio" name="labelType" value="offset">
+                Show offset x,y coords
+            </label>
+            <label>
+                <input type="radio" name="labelType" value="axial">
+                Show axial x,y coords
+            </label>
+            <label>
+                <input type="radio" name="labelType" value="cube">
+                Show cube x,y,z coords
+            </label>
+            <label>
+                <input type="radio" name="labelType" value="double">
+                Show doubled x,y coords
+            </label>
+            <label>
+                <input type="radio" name="labelType" value="none">
+                No labels
+            </label>
         </div>
         <div id="testArea">
         </div>

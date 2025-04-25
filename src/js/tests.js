@@ -8,14 +8,34 @@ let MAX_ZOOM = 5;
 let MIN_ZOOM = 0.1;
 let SCROLL_SENSITIVITY = 0.0005;
 
+function getWidth() {
+    return parseInt(document.querySelector("#txtWidth").value);
+}
+
+function getHeight() {
+    return parseInt(document.querySelector("#txtHeight").value);
+}
+
+function getRadius() {
+    return parseInt(document.querySelector("#txtRadius").value);
+}
+
+function getSpacing() {
+    return parseInt(document.querySelector("#txtSpacing").value);
+}
+
+function getLabelType() {
+    return document.querySelector("[name='labelType'][type='radio']:checked").value;
+}
+
 function startHexTest() {
     let testArea = document.querySelector("#testArea");
     testArea.innerHTML = "";
 
     let canvas = document.createElement("canvas");
     canvas.id = "canvas";
-    canvas.width = 800;
-    canvas.height = 600;
+    canvas.width = getWidth();
+    canvas.height = getHeight();
     testArea.appendChild(canvas);
 
     canvas.addEventListener('mousedown', onPointerDown);
@@ -37,13 +57,13 @@ function startHexTest() {
 function draw(canvas, ctx) {
 
     // Apparently setting the width and height again is *required* for this to work
-    canvas.width = 800;
-    canvas.height = 600;
+    canvas.width = getWidth();
+    canvas.height = getHeight();
 
-    ctx.translate(400, 300);
+    ctx.translate(getWidth() / 2, getHeight() / 2);
     ctx.scale(cameraZoom, cameraZoom);
-    ctx.translate(-400 + cameraOffset.x, -300 + cameraOffset.y);
-    ctx.clearRect(0, 0, 800, 600);
+    ctx.translate(-(getWidth() / 2) + cameraOffset.x, -(getHeight() / 2) + cameraOffset.y);
+    ctx.clearRect(0, 0, getWidth(), getHeight());
 
     drawHexes(ctx);
 
@@ -142,34 +162,13 @@ function adjustZoom(zoomAmount, zoomFactor) {
  * @param {CanvasRenderingContext2D} ctx 
  */
 function drawHexes(ctx) {
-    let centerX = 400;
-    let centerY = 300;
-    let radius = 25;
-    let spacingX = 50;
+    let centerX = getWidth() / 2;
+    let centerY = getHeight() / 2;
+    let radius = getRadius();
+    let spacingX = getSpacing();
     let spacingY = spacingX * GRID_COS;
+    let labelType = getLabelType();
     
-    drawHex(ctx, centerX, centerY, radius);
-
-    drawHex(ctx, centerX + spacingX / 2, centerY - spacingY, radius);
-    drawHex(ctx, centerX - spacingX / 2, centerY - spacingY, radius);
-    drawHex(ctx, centerX - spacingX, centerY, radius);
-    drawHex(ctx, centerX - spacingX / 2, centerY + spacingY, radius);
-    drawHex(ctx, centerX + spacingX / 2, centerY + spacingY, radius);
-    drawHex(ctx, centerX + spacingX, centerY, radius);
-
-    drawHex(ctx, centerX + spacingX, centerY - 2 * spacingY, radius);
-    drawHex(ctx, centerX, centerY - 2 * spacingY, radius);
-    drawHex(ctx, centerX - spacingX, centerY - 2 * spacingY, radius);
-    drawHex(ctx, centerX - 1.5 * spacingX, centerY - spacingY, radius);
-    drawHex(ctx, centerX - 2 * spacingX, centerY, radius);
-    drawHex(ctx, centerX - 1.5 * spacingX, centerY + spacingY, radius);
-    drawHex(ctx, centerX - spacingX, centerY + 2 * spacingY, radius);
-    drawHex(ctx, centerX, centerY + 2 * spacingY, radius);
-    drawHex(ctx, centerX + spacingX, centerY + 2 * spacingY, radius);
-    drawHex(ctx, centerX + 1.5 * spacingX, centerY + spacingY, radius);
-    drawHex(ctx, centerX + 2 * spacingX, centerY, radius);
-    drawHex(ctx, centerX + 1.5 * spacingX, centerY - spacingY, radius);
-
     let distanceToOrigin = function(xMult, yMult) {
         if (yMult % 2 == 0) {
             if (!xMult.toFixed(1).endsWith(".0")) {
@@ -192,16 +191,36 @@ function drawHexes(ctx) {
         return result;
     };
 
-    let bounds = 8;
-    let toDraw = [3, 4, 5, 6, 7, 8];
-    for (let yDelta = -bounds; yDelta <= bounds; yDelta += 1) {
-        for (let xDelta = -bounds; xDelta <= bounds; xDelta += 0.5) {
+    let maxDistance = 8;
+    for (let yDelta = -maxDistance; yDelta <= maxDistance; yDelta += 1) {
+        for (let xDelta = -maxDistance; xDelta <= maxDistance; xDelta += 0.5) {
             let d = distanceToOrigin(xDelta, yDelta);
-            if (!toDraw.includes(d)) {
+            if (isNaN(d) || d > maxDistance) {
                 continue;
             }
 
-            drawHex(ctx, centerX + xDelta * spacingX, centerY + yDelta * spacingY, radius);
+            let cx = centerX + xDelta * spacingX;
+            let cy = centerY + yDelta * spacingY;
+            let label = "";
+            switch (labelType) {
+                case "coords":
+                    label = `${cx.toFixed(0)},${cy.toFixed(0)}`;
+                    break;
+                case "offset":
+                    label = `${Math.floor(xDelta)},${yDelta}`;
+                    break;
+                case "double":
+                    label = `${xDelta * 2},${yDelta}`;
+                    break;
+                case "axial":
+                    label = `${xDelta - yDelta / 2},${yDelta}`;
+                    break;
+                case "cube":
+                    label = `${xDelta - yDelta / 2},${yDelta},${-xDelta - yDelta / 2}`;
+                    break;
+            }
+
+            drawHex(ctx, cx, cy, radius, label);
         }
     }
 }
@@ -213,7 +232,7 @@ function drawHexes(ctx) {
  * @param {number} cy y coordinate for the hexagon center
  * @param {number} r hexagon corner radius
  */
-function drawHex(ctx, cx, cy, r) {
+function drawHex(ctx, cx, cy, r, label) {
     ctx.beginPath();
     ctx.moveTo(cx + r * HEX_SIN, cy - r * HEX_COS);
     ctx.lineTo(cx, cy - r);
@@ -224,74 +243,8 @@ function drawHex(ctx, cx, cy, r) {
     ctx.closePath();
     ctx.stroke();
 
-    ctx.strokeText(`${cx.toFixed(0)},${cy.toFixed(0)}`, cx - r + 7, cy + 2);
-}
-
-function hexTestTwo() {
-    let testArea = document.querySelector("#testArea");
-    testArea.innerHTML = "";
-
-    let canvas = document.createElement("canvas");
-    canvas.id = "canvas";
-    canvas.width = 1000;
-    canvas.height = 700;
-    testArea.appendChild(canvas);
-
-    canvas.addEventListener('mousedown', onPointerDown);
-    canvas.addEventListener('touchstart', (e) => handleTouch(e, onPointerDown));
-    canvas.addEventListener('mouseup', onPointerUp);
-    canvas.addEventListener('touchend',  (e) => handleTouch(e, onPointerUp));
-    canvas.addEventListener('mousemove', onPointerMove);
-    canvas.addEventListener('touchmove', (e) => handleTouch(e, onPointerMove));
-    canvas.addEventListener('wheel', (e) => adjustZoom(e.deltaY * SCROLL_SENSITIVITY));
-
-    let ctx = canvas.getContext("2d");
-    draw2(canvas, ctx);
-}
-
-function draw2(canvas, ctx) {
-    canvas.width = 1000;
-    canvas.height = 700;
-
-    ctx.translate(500, 350);
-    ctx.scale(cameraZoom, cameraZoom);
-    ctx.translate(-500 + cameraOffset.x, -350 + cameraOffset.y);
-    ctx.clearRect(0, 0, 1000, 700);
-
-    drawMap(ctx);
-
-    requestAnimationFrame(() => draw2(canvas, ctx));
-}
-
-let tiles = [
-    { x: 0, y: 0 },
-    { x: -1, y: 1 },
-    { x: 1, y: -3 },
-    { x: 2, y: 2 }
-];
-
-function drawMap(ctx) {
-    let sorted = tiles.toSorted((a, b) => a.y - b.y);
-    for (let tile of sorted) {
-        drawTile(ctx, tile);
+    if (label && label.length) {
+        let metrics = ctx.measureText(label);
+        ctx.strokeText(label, cx - metrics.width / 2, cy + 3);
     }
-}
-
-function drawTile(ctx, tile) {
-    let centerX = 400;
-    let centerY = 300;
-    let radius = 25;
-    let spacingX = 50;
-
-    ctx.beginPath();
-    ctx.moveTo(cx + r * HEX_SIN, cy - r * HEX_COS);
-    ctx.lineTo(cx, cy - r);
-    ctx.lineTo(cx - r * HEX_SIN, cy - r * HEX_COS);
-    ctx.lineTo(cx - r * HEX_SIN, cy + r * HEX_COS);
-    ctx.lineTo(cx, cy + r);
-    ctx.lineTo(cx + r * HEX_SIN, cy + r * HEX_COS);
-    ctx.closePath();
-    ctx.stroke();
-
-    ctx.strokeText(`${cx.toFixed(0)},${cy.toFixed(0)}`, cx - r + 7, cy + 2);
 }
