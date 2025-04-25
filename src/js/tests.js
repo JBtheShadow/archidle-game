@@ -28,6 +28,10 @@ function getLabelType() {
     return document.querySelector("[name='labelType'][type='radio']:checked").value;
 }
 
+function getFlattening() {
+    return parseFloat(document.querySelector("#txtFlattening").value) / 100;
+}
+
 function startHexTest() {
     let testArea = document.querySelector("#testArea");
     testArea.innerHTML = "";
@@ -61,7 +65,7 @@ function draw(canvas, ctx) {
     canvas.height = getHeight();
 
     ctx.translate(getWidth() / 2, getHeight() / 2);
-    ctx.scale(cameraZoom, cameraZoom);
+    ctx.scale(cameraZoom, cameraZoom * (1 - getFlattening()));
     ctx.translate(-(getWidth() / 2) + cameraOffset.x, -(getHeight() / 2) + cameraOffset.y);
     ctx.clearRect(0, 0, getWidth(), getHeight());
 
@@ -94,7 +98,7 @@ function resetCamera() {
 function onPointerDown(e) {
     isDragging = true
     dragStart.x = getEventLocation(e).x/cameraZoom - cameraOffset.x
-    dragStart.y = getEventLocation(e).y/cameraZoom - cameraOffset.y
+    dragStart.y = getEventLocation(e).y/(cameraZoom * (1 - getFlattening())) - cameraOffset.y
 }
 
 function onPointerUp(e) {
@@ -106,7 +110,7 @@ function onPointerUp(e) {
 function onPointerMove(e) {
     if (isDragging) {
         cameraOffset.x = getEventLocation(e).x/cameraZoom - dragStart.x
-        cameraOffset.y = getEventLocation(e).y/cameraZoom - dragStart.y
+        cameraOffset.y = getEventLocation(e).y/(cameraZoom * (1 - getFlattening())) - dragStart.y
     }
 }
 
