@@ -7,6 +7,67 @@ let cameraZoom = 1;
 let MAX_ZOOM = 5;
 let MIN_ZOOM = 0.1;
 let SCROLL_SENSITIVITY = 0.0005;
+let canvas, ctx;
+
+const CoordinateSystem = Object.freeze({
+    OFFSET: 1,
+    AXIAL: 2,
+    CUBE: 3,
+    DOUBLED: 4
+});
+
+class HexTile {
+    constructor(opts) {
+        opts = opts || {};
+        let x = opts.x || NaN;
+        let y = opts.y || NaN;
+        let z = opts.z || NaN;
+        let system = opts.system || CoordinateSystem.DOUBLED;
+
+        if (system == CoordinateSystem.CUBE) {
+            if (isNaN(x) && isNaN(y) && isNaN(z)) {
+                console.warn("No cube coordinates informed, using the origin [0,0,0]");
+                x = 0;
+                y = 0;
+            }
+            else if (isNaN(x || y) || isNaN(x || z) || isNaN(y || z)) {
+                throw Error("Cube coordinates require at least two components out of [x,y,z]");
+            }
+            else if (x + y + z != 0) {
+                throw Error("Invalid cube coordinates, their [x,y,z] components must add up to 0");
+            }
+            else if (isNaN(x)) {
+                x = -y -z;
+            }
+            else if (isNaN(y)) {
+                y = -x -z;
+            }
+        }
+        else {
+            x = x || 0;
+            y = y || 0;
+        }
+        
+        if (system == CoordinateSystem.DOUBLED) {
+            if ((x + y) % 2 != 0) {
+                throw Error("Invalid doubled coordinates, their [x,y] components must add up to a multiple of 2");
+            }
+        }
+
+        this.x = x;
+        this.y = y;
+        this.system = system;
+    }
+
+    get z() {
+        if (this.system != CoordinateSystem.CUBE) {
+            console.warn("z component only exists for cube coordinates");
+            return undefined;
+        }
+
+        return -this.x -this.y;
+    }
+}
 
 function getWidth() {
     return parseInt(document.querySelector("#txtWidth").value);
@@ -32,15 +93,12 @@ function getFlattening() {
     return parseFloat(document.querySelector("#txtFlattening").value) / 100;
 }
 
-function startHexTest() {
-    let testArea = document.querySelector("#testArea");
-    testArea.innerHTML = "";
+function initializeCanvas() {
+    canvas = document.querySelector("#canvas");
+    ctx = canvas.getContext("2d")
 
-    let canvas = document.createElement("canvas");
-    canvas.id = "canvas";
     canvas.width = getWidth();
     canvas.height = getHeight();
-    testArea.appendChild(canvas);
 
     canvas.addEventListener('mousedown', onPointerDown);
     canvas.addEventListener('touchstart', (e) => handleTouch(e, onPointerDown));
@@ -49,16 +107,13 @@ function startHexTest() {
     canvas.addEventListener('mousemove', onPointerMove);
     canvas.addEventListener('touchmove', (e) => handleTouch(e, onPointerMove));
     canvas.addEventListener('wheel', (e) => adjustZoom(e.deltaY * SCROLL_SENSITIVITY));
-
-    let ctx = canvas.getContext("2d");
-    draw(canvas, ctx);
 }
 
-/**
- * 
- * @param {CanvasRenderingContext2D} ctx 
- */
-function draw(canvas, ctx) {
+function startHexTest() {
+    draw();
+}
+
+function draw() {
 
     // Apparently setting the width and height again is *required* for this to work
     canvas.width = getWidth();
@@ -69,9 +124,9 @@ function draw(canvas, ctx) {
     ctx.translate(-(getWidth() / 2) + cameraOffset.x, -(getHeight() / 2) + cameraOffset.y);
     ctx.clearRect(0, 0, getWidth(), getHeight());
 
-    drawHexes(ctx);
+    drawHexes();
 
-    requestAnimationFrame(() => draw(canvas, ctx));
+    requestAnimationFrame(draw);
 }
 
 // Gets the relevant location from a mouse or single touch event
@@ -161,39 +216,35 @@ function adjustZoom(zoomAmount, zoomFactor) {
     }
 }
 
-/**
- * Test to draw several hexagons
- * @param {CanvasRenderingContext2D} ctx 
- */
-function drawHexes(ctx) {
+function distanceToOrigin(xDelta, yDelta) {
+    if (yDelta % 2 == 0) {
+        if (!xDelta.toFixed(1).endsWith(".0")) {
+            return NaN;
+        }
+    }
+    else if (xDelta.toFixed(1).endsWith(".0")) {
+        return NaN;
+    }
+
+    let result = 0
+    let tolerance = Math.abs(yDelta) / 2;
+    if (Math.abs(xDelta) <= tolerance) {
+        result = Math.abs(yDelta);
+    }
+    else {
+        result = Math.abs(yDelta) + Math.abs(xDelta) - tolerance;
+    }
+
+    return result;
+}
+
+function drawHexes() {
     let centerX = getWidth() / 2;
     let centerY = getHeight() / 2;
     let radius = getRadius();
     let spacingX = getSpacing();
     let spacingY = spacingX * GRID_COS;
     let labelType = getLabelType();
-    
-    let distanceToOrigin = function(xMult, yMult) {
-        if (yMult % 2 == 0) {
-            if (!xMult.toFixed(1).endsWith(".0")) {
-                return NaN;
-            }
-        }
-        else if (xMult.toFixed(1).endsWith(".0")) {
-            return NaN;
-        }
-
-        let result = 0
-        let tolerance = Math.abs(yMult) / 2;
-        if (Math.abs(xMult) <= tolerance) {
-            result = Math.abs(yMult);
-        }
-        else {
-            result = Math.abs(yMult) + Math.abs(xMult) - tolerance;
-        }
-
-        return result;
-    };
 
     let maxDistance = 8;
     for (let yDelta = -maxDistance; yDelta <= maxDistance; yDelta += 1) {
@@ -224,19 +275,18 @@ function drawHexes(ctx) {
                     break;
             }
 
-            drawHex(ctx, cx, cy, radius, label);
+            drawHex(cx, cy, radius, label);
         }
     }
 }
 
 /**
  * Draws a hex given a canvas and some parameters
- * @param {CanvasRenderingContext2D} ctx canvas context
  * @param {number} cx x coordinate for the hexagon center
  * @param {number} cy y coordinate for the hexagon center
  * @param {number} r hexagon corner radius
  */
-function drawHex(ctx, cx, cy, r, label) {
+function drawHex(cx, cy, r, label) {
     ctx.beginPath();
     ctx.moveTo(cx + r * HEX_SIN, cy - r * HEX_COS);
     ctx.lineTo(cx, cy - r);
@@ -252,3 +302,7 @@ function drawHex(ctx, cx, cy, r, label) {
         ctx.strokeText(label, cx - metrics.width / 2, cy + 3);
     }
 }
+
+window.onload = () => {
+    initializeCanvas();
+};
